@@ -117,7 +117,7 @@ optional arguments:
 To load every plugin:
 
 ```bash
-python det.py -L -c ./config.json -p twitter,gmail
+python det.py -L -c ./config.json
 ```
 
 To load *only* twitter and gmail modules: 
