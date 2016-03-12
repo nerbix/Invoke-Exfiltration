@@ -39,7 +39,7 @@ def listen():
             app_exfiltrate.log_message(
                 'info', "[tcp] client connected: {}".format(client_address))
             while True:
-                data = connection.recv(1024)
+                data = connection.recv(65535)
                 if data:
                     app_exfiltrate.log_message(
                         'info', "[tcp] Received {} bytes".format(len(data)))
