@@ -155,7 +155,7 @@ class Exfiltration(object):
         global files
         fname = files[jobid]['filename']
         filename = "%s.%s" % (fname.replace(
-            '/', ''), time.strftime("%Y-%m-%d.%H:%M:%S", time.gmtime()))
+            os.path.pathsep, ''), time.strftime("%Y-%m-%d.%H:%M:%S", time.gmtime()))
         content = ''.join(str(v) for v in files[jobid]['data']).decode('hex')
         f = open(filename, 'w')
         f.write(content)
@@ -209,7 +209,7 @@ class ExfiltrateFile(threading.Thread):
 
         warning("[!] Registering packet for the file")
         data = "%s|!|%s|!|REGISTER|!|%s" % (
-            self.jobid, self.file_to_send, self.checksum)
+            self.jobid, os.path.basename(self.file_to_send), self.checksum)
         plugin_send_function(data)
 
         time_to_sleep = randint(1, MAX_TIME_SLEEP)
