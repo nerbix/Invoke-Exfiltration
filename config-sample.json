@@ -23,6 +23,10 @@
             "target": "192.168.0.12",
             "port": 6969
         },
+        "udp": {
+            "target": "192.168.0.12",
+            "port": 6969
+        },
         "twitter": {
             "username": "PaulWebSec",
             "CONSUMER_TOKEN": "XXXXXXXXXXX",
