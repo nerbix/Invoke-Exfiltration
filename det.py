@@ -163,7 +163,7 @@ class Exfiltration(object):
         if (files[jobid]['checksum'] == md5(filename)):
             ok("File %s recovered" % (fname))
         else:
-            warning("File %s corrupt!" % fname, True)
+            warning("File %s corrupt!" % (fname))
         del files[jobid]
 
     def retrieve_data(self, data):
