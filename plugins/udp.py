@@ -1,6 +1,5 @@
 import socket
 import sys
-import binascii
 
 config = None
 app_exfiltrate = None
