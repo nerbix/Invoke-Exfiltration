@@ -27,7 +27,7 @@ def analyze(packet):
     try:
         app_exfiltrate.log_message(
             'info', "[icmp] Received ICMP packet from: {0} to {1}".format(src, dst))
-        app_exfiltrate.retrieve_data(packet.load)
+        app_exfiltrate.retrieve_data(base64.b64decode(packet.load))
     except:
         pass
 
