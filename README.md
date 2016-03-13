@@ -1,7 +1,7 @@
 DET (extensible) Data Exfiltration Toolkit
 =======
 
-DET (is provided AS IS), is a proof of concept to perform Data Exfiltration using either single or multiple channel(s) at the same time. 
+DET (is provided AS IS), is a proof of concept to perform Data Exfiltration using either single or multiple channel(s) at the same time.
 The idea was to create a generic toolkit to plug any kind of protocol/service.
 
 # Slides
@@ -46,8 +46,8 @@ pip install -r requirements.txt --user
 
 # Configuration
 
-In order to use DET, you will need to configure it and add your proper settings (eg. SMTP/IMAP credentials and so on). 
-A configuration example file has been provided and is called: ```config-sample.json``` 
+In order to use DET, you will need to configure it and add your proper settings (eg. SMTP/IMAP, AES256 encryption
+passphrase and so on). A configuration example file has been provided and is called: ```config-sample.json```
 
 ```json
 {
@@ -75,6 +75,10 @@ A configuration example file has been provided and is called: ```config-sample.j
             "target": "192.168.1.101",
             "port": 6969
         },
+        "udp": {
+            "target": "192.168.1.101",
+            "port": 6969
+        },
         "twitter": {
             "username": "PaulWebSec",
             "CONSUMER_TOKEN": "XXXXXXXXX",
@@ -86,7 +90,7 @@ A configuration example file has been provided and is called: ```config-sample.j
             "target": "192.168.1.101"
         }
     },
-    "XOR_KEY": "THISISACRAZYKEY",
+    "AES_KEY": "THISISACRAZYKEY",
     "sleep_time": 10
 }
 ```
@@ -183,14 +187,9 @@ So far, I am busy implementing new modules which are almost ready to ship, inclu
 - [ ] Tor (80% done)
 - [ ] Github (30/40% done)
 
-# Limitations
-
-Data so far is not encrypted and just HEX/XOR'ed which can be detected if deep analysis is done. I plan to add encryption soon (such as [Public-key cryptography](https://en.wikipedia.org/wiki/Public-key_cryptography))
-
 # Roadmap
 
 - [ ] Compression (extremely important!)
-- [ ] Add proper encryption (eg. AES-256)
 - [ ] Proper data obfuscation and integrating [Markovobfuscate](https://github.com/bwall/markovobfuscate)
 - [ ] FTP, FlickR [LSB Steganography](https://github.com/RobinDavid/LSB-Steganography) and Youtube modules
 

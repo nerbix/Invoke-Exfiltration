@@ -38,7 +38,7 @@
             "target": "192.168.0.12"
         }
     },
-    "XOR_KEY": "THISISACRAZYKEY", 
+    "AES_KEY": "THISISACRAZYKEY",
     "max_time_sleep": 10,
     "min_time_sleep": 1,
     "max_bytes_read": 400,

