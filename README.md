@@ -1,12 +1,13 @@
 DET (extensible) Data Exfiltration Toolkit
 =======
 
-DET (is provided AS IS), is a proof of concept to perform Data Exfiltration using either single or multiple channel(s) at the same time. 
+DET (is provided AS IS), is a proof of concept to perform Data Exfiltration using either single or multiple channel(s) at the same time.
 The idea was to create a generic toolkit to plug any kind of protocol/service.
 
 # Slides
 
-DET has been presented at [BSides Ljubljana](https://bsidesljubljana.si/) on the 9th of March 2016 and the slides will be available here. Soon.
+DET has been presented at [BSides Ljubljana](https://bsidesljubljana.si/) on the 9th of March 2016 and the slides will be available here.
+Slides are available [here](https://docs.google.com/presentation/d/11uk6d-xougn3jU1wu4XRM3ZGzitobScSSMUlx0MRTzg).
 
 # Example usage (ICMP plugin)
 
@@ -46,8 +47,8 @@ pip install -r requirements.txt --user
 
 # Configuration
 
-In order to use DET, you will need to configure it and add your proper settings (eg. SMTP/IMAP credentials and so on). 
-A configuration example file has been provided and is called: ```config-sample.json``` 
+In order to use DET, you will need to configure it and add your proper settings (eg. SMTP/IMAP, AES256 encryption
+passphrase and so on). A configuration example file has been provided and is called: ```config-sample.json```
 
 ```json
 {
@@ -75,6 +76,10 @@ A configuration example file has been provided and is called: ```config-sample.j
             "target": "192.168.1.101",
             "port": 6969
         },
+        "udp": {
+            "target": "192.168.1.101",
+            "port": 6969
+        },
         "twitter": {
             "username": "PaulWebSec",
             "CONSUMER_TOKEN": "XXXXXXXXX",
@@ -86,7 +91,7 @@ A configuration example file has been provided and is called: ```config-sample.j
             "target": "192.168.1.101"
         }
     },
-    "XOR_KEY": "THISISACRAZYKEY",
+    "AES_KEY": "THISISACRAZYKEY",
     "sleep_time": 10
 }
 ```
@@ -183,15 +188,11 @@ So far, I am busy implementing new modules which are almost ready to ship, inclu
 - [ ] Tor (80% done)
 - [ ] Github (30/40% done)
 
-# Limitations
-
-Data so far is not encrypted and just HEX/XOR'ed which can be detected if deep analysis is done. I plan to add encryption soon (such as [Public-key cryptography](https://en.wikipedia.org/wiki/Public-key_cryptography))
-
 # Roadmap
 
-- [ ] Compression (extremely important!)
-- [ ] Add proper encryption (eg. AES-256)
-- [ ] Proper data obfuscation and integrating [Markovobfuscate](https://github.com/bwall/markovobfuscate)
+- [X] Add proper encryption (eg. AES-256) Thanks to [ryanohoro](https://github.com/ryanohoro)
+- [X] Compression (extremely important!) Thanks to [chokepoint](https://github.com/chokepoint)
+- [ ] Proper data obfuscation and integrating [Cloakify Toolset Toolset](https://github.com/trycatchhcf/cloakify)
 - [ ] FTP, FlickR [LSB Steganography](https://github.com/RobinDavid/LSB-Steganography) and Youtube modules
 
 # References
@@ -202,6 +203,7 @@ Some pretty cool references/credits to people I got inspired by with their proje
 - [https://github.com/ytisf/PyExfil](PyExfil), truely awesome. 
 - [https://github.com/m57/dnsteal](dnsteal) from m57.
 - [https://github.com/3nc0d3r/NaishoDeNusumu](NaishoDeNusumu) from 3nc0d3r.
+- [https://github.com/glennzw/exphil](Exphil) from Glenn Wilkinson.
 - WebExfile from Saif El-Sherei
 
 # Contact/Contributing
@@ -211,4 +213,5 @@ Feel free if you want to contribute, clone, fork, submit your PR and so on.
 
 # License
 
-DET is licensed under a Creative Commons [Attribution-NonCommercial-ShareAlike 4.0 International](http://creativecommons.org/licenses/by-nc-sa/4.0/). Permissions beyond the scope of this license may be available at [info@sensepost.com](info@sensepost.com)
+DET is licensed under a [MIT License](https://opensource.org/licenses/MIT). 
+Permissions beyond the scope of this license may be available at [info@sensepost.com](info@sensepost.com)

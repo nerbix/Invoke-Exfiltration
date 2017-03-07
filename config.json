@@ -1,0 +1,52 @@
+{
+    "plugins": {
+        "http": {
+            "target": "10.100.100.146",
+            "port": 8080
+        },
+        "google_docs": {
+            "target": "conchwaiter.uk.plak.cc",
+            "port": 8080
+        },        
+        "dns": {
+            "key": "google.com",
+            "target": "10.100.100.146",
+            "port": 53
+        },
+        "gmail": {
+            "username": "dataexfil@gmail.com",
+            "password": "CrazyNicePassword",
+            "server": "smtp.gmail.com",
+            "port": 587
+        },
+        "tcp": {
+            "target": "10.100.100.144",
+            "port": 6969
+        },
+        "udp": {
+            "target": "10.100.100.144",
+            "port": 6969
+        },
+        "twitter": {
+            "username": "PaulWebSec",
+            "CONSUMER_TOKEN": "XXXXXXXXXXX",
+            "CONSUMER_SECRET": "XXXXXXXXXXX",
+            "ACCESS_TOKEN": "XXXXXXXXXXX",
+            "ACCESS_TOKEN_SECRET": "XXXXXXXXXXX"
+        },
+        "icmp": {
+            "target": "10.100.100.146"
+        },
+        "slack": {
+            "api_token": "xoxb-XXXXXXXXXXX",
+            "chan_id": "XXXXXXXXXXX",
+            "bot_id": "<@XXXXXXXXXXX>:"
+        }
+    },
+    "AES_KEY": "HELLO123",
+    "max_time_sleep": 10,
+    "min_time_sleep": 1,
+    "max_bytes_read": 400,
+    "min_bytes_read": 300,
+    "compression": 1
+}
