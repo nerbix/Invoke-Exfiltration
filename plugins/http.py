@@ -3,9 +3,9 @@ import base64
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 import urllib
 
+port = None
 config = None
 app_exfiltrate = None
-
 
 class S(BaseHTTPRequestHandler):
 
@@ -48,18 +48,20 @@ def send(data):
 def listen():
     app_exfiltrate.log_message('info', "[http] Starting httpd...")
     try:
-        server_address = ('', config['port'])
+        #server_address = ('', config['port'])
+	server_address = ('', port)
         httpd = HTTPServer(server_address, S)
         httpd.serve_forever()
     except:
         app_exfiltrate.log_message(
-            'warning', "[http] Couldn't bind http daemon on port {}".format(port))
+            'warning', "[http] Couldn't bind http daemon on port {}".format(config['port']))
 
 
 class Plugin:
 
-    def __init__(self, app, conf):
-        global app_exfiltrate, config
-        config = conf
+    def __init__(self, app, conf, p):
+        global app_exfiltrate, config, port
+	config = conf
         app_exfiltrate = app
+	port = p
         app.register_plugin('http', {'send': send, 'listen': listen})
