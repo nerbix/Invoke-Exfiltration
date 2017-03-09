@@ -280,7 +280,9 @@ class Exfiltration(object):
         fname = files[jobid]['filename']
         filename = "%s.%s" % (fname.replace(os.path.pathsep, ''), time.strftime("%Y-%m-%d.%H:%M:%S", time.gmtime()))
         content = ''.join(str(v) for v in files[jobid]['data']).decode('hex')
-        content = aes_decrypt(content, self.KEY)
+        if self.KEY is not None:
+	    info("Decrypting content from %s" % (fname))
+	    content = aes_decrypt(content, self.KEY)
 	#if COMPRESSION:
         #    content = decompress(content)
         f = open(filename, 'w')
@@ -345,10 +347,10 @@ def main():
         parser.print_help()
         sys.exit(-1)
 
-    if (results.key is None):
-        print "Specify an AES key!"
-        parser.print_help()
-        sys.exit(-1)
+    #if (results.key is None):
+        #print "Specify an AES key!"
+        #parser.print_help()
+        #sys.exit(-1)
 
     if ("http" in results.type and results.port is None):
         print "Specify a port for HTTP exfiltration!"
@@ -369,7 +371,14 @@ def main():
     MIN_BYTES_READ = 300
     MAX_BYTES_READ = 400
     COMPRESSION    = 1
-    KEY = unicode(results.key, 'utf-8')
+
+    if results.key is not None:
+        ok("AES key provided")
+        KEY = unicode(results.key, 'utf-8')
+    else:
+        warning("AES key not provided - decryption is unavailable")
+        KEY = results.key
+
     app = Exfiltration(results, KEY)
 
     # LISTEN MODE
