@@ -159,24 +159,6 @@ def ok(message):
 def info(message):
     display_message("%s%s%s" % (bcolors.OKBLUE, message, bcolors.ENDC))
 
-
-# http://stackoverflow.com/questions/12524994/encrypt-decrypt-using-pycrypto-aes-256
-def aes_encrypt(message, key=KEY):
-    try:
-        # Generate random CBC IV
-        iv = os.urandom(AES.block_size)
-
-        # Derive AES key from passphrase
-        aes = AES.new(hashlib.sha256(key).digest(), AES.MODE_CBC, iv)
-
-        # Add PKCS5 padding
-        pad = lambda s: s + (AES.block_size - len(s) % AES.block_size) * chr(AES.block_size - len(s) % AES.block_size)
-
-        # Return data size, iv and encrypted message
-        return iv + aes.encrypt(pad(message))
-    except:
-        return None
-
 def aes_decrypt(message, key=KEY):
     try:
         # Retrieve CBC IV
@@ -191,6 +173,22 @@ def aes_decrypt(message, key=KEY):
         unpad = lambda s: s[:-ord(s[len(s) - 1:])]
 
         return unpad(message)
+    except:
+        return None
+
+def aes_encrypt(message, key=KEY):
+    try:
+        # Generate random CBC IV
+        iv = os.urandom(AES.block_size)
+
+        # Derive AES key from passphrase
+        aes = AES.new(hashlib.sha256(key).digest(), AES.MODE_CBC, iv)
+
+        # Add PKCS5 padding
+        pad = lambda s: s + (AES.block_size - len(s) % AES.block_size) * chr(AES.block_size - len(s) % AES.block_size)
+
+        # Return data size, iv and encrypted message
+        return iv + aes.encrypt(pad(message))
     except:
         return None
 
@@ -280,9 +278,9 @@ class Exfiltration(object):
         fname = files[jobid]['filename']
         filename = "%s.%s" % (fname.replace(os.path.pathsep, ''), time.strftime("%Y-%m-%d.%H:%M:%S", time.gmtime()))
         content = ''.join(str(v) for v in files[jobid]['data']).decode('hex')
-        content = aes_decrypt(content, self.KEY)
-	#if COMPRESSION:
-        #    content = decompress(content)
+        if self.KEY is not None:
+	    info("Decrypting content from %s" % (fname))
+	    content = aes_decrypt(content, self.KEY)
         f = open(filename, 'w')
         f.write(content)
         f.close()
@@ -311,7 +309,7 @@ class Exfiltration(object):
                 else:
                     # making sure there's a jobid for this file
                     if (jobid in files and message[1] not in files[jobid]['packets_number']):
-                        files[jobid]['data'].append(''.join(message[2:]))
+                        files[jobid]['data'].append(''.join(message[3:]))
                         files[jobid]['packets_number'].append(message[1])
         except:
             raise
@@ -319,7 +317,7 @@ class Exfiltration(object):
 
 def signal_handler(bla, frame):
     global threads
-    warning('Killing DET and its subprocesses')
+    warning('Killing All Listeners')
     os.kill(os.getpid(), signal.SIGKILL)
 
 def main():
@@ -327,7 +325,7 @@ def main():
     global threads, config
 
     parser = argparse.ArgumentParser(
-        description='Data Exfiltration Toolkit (SensePost)')
+        description='Invoke-Exfiltration Listener')
     parser.add_argument('-L', action="store_true",
                         dest="listen", default=True, help="Server mode")
     parser.add_argument('-k', action="store", dest="key", default=None,
@@ -342,11 +340,6 @@ def main():
 
     if (results.type is None):
         print "Specify correct type for exfiltration!"
-        parser.print_help()
-        sys.exit(-1)
-
-    if (results.key is None):
-        print "Specify an AES key!"
         parser.print_help()
         sys.exit(-1)
 
@@ -369,7 +362,14 @@ def main():
     MIN_BYTES_READ = 300
     MAX_BYTES_READ = 400
     COMPRESSION    = 1
-    KEY = unicode(results.key, 'utf-8')
+
+    if results.key is not None:
+        ok("AES key provided")
+        KEY = unicode(results.key, 'utf-8')
+    else:
+        warning("AES key not provided - decryption is unavailable")
+        KEY = results.key
+
     app = Exfiltration(results, KEY)
 
     # LISTEN MODE
