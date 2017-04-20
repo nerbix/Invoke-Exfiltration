@@ -174,7 +174,10 @@ class Plugin:
     	try:
             app_exfiltrate.log_message(
                 'info', "[icmp] Received ICMP packet from: {0} to {1}".format(src, dst))
+#With Base64 Enabled
 	    app_exfiltrate.retrieve_data(base64.b64decode(packet.load))
+#with base64 disabled
+#            app_exfiltrate.retrieve_data(packet.load)
     	except:
            pass
 
@@ -211,6 +214,8 @@ class S(BaseHTTPRequestHandler):
         try:
             data = base64.b64decode(string)
             app_exfiltrate.retrieve_data(data)
+#Base64 disabled
+#	    app_exfiltrate.retrieve_data(string)
         except Exception, e:
             pass
 

